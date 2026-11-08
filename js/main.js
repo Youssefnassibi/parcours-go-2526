@@ -1,7 +1,7 @@
-// Scene setup
+// U-SEA 3D Immersive Experience
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0e27);
-scene.fog = new THREE.Fog(0x0a0e27, 100, 1000);
+scene.background = new THREE.Color(0x001a4d);
+scene.fog = new THREE.Fog(0x001a4d, 200, 1000);
 
 const camera = new THREE.PerspectiveCamera(
     75,
@@ -9,7 +9,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     10000
 );
-camera.position.set(0, 20, 50);
+camera.position.set(0, 25, 60);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -17,192 +17,273 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowShadowMap;
 document.body.appendChild(renderer.domElement);
 
-// Remove loading screen when ready
-document.querySelector('.loading').style.display = 'none';
+// Remove loading
+setTimeout(() => {
+    document.querySelector('.loading').style.display = 'none';
+}, 1000);
 
-// Lights
-const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
+// Ocean lights
+const ambientLight = new THREE.AmbientLight(0x4488ff, 1.2);
 scene.add(ambientLight);
 
-const pointLight1 = new THREE.PointLight(0xff00ff, 2, 200);
-pointLight1.position.set(50, 50, 50);
-pointLight1.castShadow = true;
-scene.add(pointLight1);
+const sunLight = new THREE.DirectionalLight(0xffffff, 0.6);
+sunLight.position.set(100, 100, 50);
+sunLight.castShadow = true;
+scene.add(sunLight);
 
-const pointLight2 = new THREE.PointLight(0x00ffff, 1.5, 200);
-pointLight2.position.set(-50, 30, -50);
-pointLight2.castShadow = true;
-scene.add(pointLight2);
+const underwaterLight1 = new THREE.PointLight(0x00ffff, 2, 300);
+underwaterLight1.position.set(80, 30, 0);
+scene.add(underwaterLight1);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(100, 100, 50);
-directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 2048;
-directionalLight.shadow.mapSize.height = 2048;
-scene.add(directionalLight);
+const underwaterLight2 = new THREE.PointLight(0x0088ff, 1.5, 250);
+underwaterLight2.position.set(-80, 20, -80);
+scene.add(underwaterLight2);
 
-// Create universe objects
-class UniverseObject {
-    constructor(position, size, color, speed = 0) {
+// Ocean water plane
+const waterGeometry = new THREE.PlaneGeometry(500, 500);
+const waterMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a6b99,
+    metalness: 0.8,
+    roughness: 0.2,
+    emissive: 0x0044aa,
+    emissiveIntensity: 0.2
+});
+const water = new THREE.Mesh(waterGeometry, waterMaterial);
+water.rotation.x = -Math.PI / 2;
+water.position.y = 0;
+water.receiveShadow = true;
+scene.add(water);
+
+// Ocean floor
+const floorGeometry = new THREE.PlaneGeometry(500, 500);
+const floorMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a3a4a,
+    roughness: 0.8
+});
+const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -80;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Service vessels & structures
+class ServiceElement {
+    constructor(position, scale, color, type, name) {
         this.position = position;
-        this.size = size;
+        this.scale = scale;
         this.color = color;
-        this.speed = speed;
+        this.type = type;
+        this.name = name;
         this.mesh = null;
-        this.angle = Math.random() * Math.PI * 2;
-        this.rotationAxis = new THREE.Vector3(
-            Math.random(),
-            Math.random(),
-            Math.random()
-        ).normalize();
+        this.particles = [];
     }
 
-    create(geometry, name) {
+    create() {
+        let geometry;
+
+        if (this.type === 'fishing') {
+            // Fishing vessel
+            geometry = new THREE.BoxGeometry(this.scale, this.scale * 0.6, this.scale * 2);
+        } else if (this.type === 'naval') {
+            // Naval engineering structure
+            geometry = new THREE.ConeGeometry(this.scale, this.scale * 2, 8);
+        } else if (this.type === 'logistics') {
+            // Logistics container/dock
+            geometry = new THREE.BoxGeometry(this.scale * 2, this.scale, this.scale);
+        }
+
         const material = new THREE.MeshStandardMaterial({
             color: this.color,
-            metalness: 0.6,
+            metalness: 0.7,
             roughness: 0.3,
-            emissive: new THREE.Color(this.color).multiplyScalar(0.3)
+            emissive: new THREE.Color(this.color).multiplyScalar(0.4)
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.position.copy(this.position);
-        this.mesh.scale.set(this.size, this.size, this.size);
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
-        this.mesh.userData.name = name;
-        this.mesh.userData.object = this;
+        this.mesh.userData = { name: this.name, type: this.type };
 
         return this.mesh;
     }
 
     update() {
-        if (this.mesh && this.speed > 0) {
-            this.mesh.rotation.x += this.speed * 0.001;
-            this.mesh.rotation.y += this.speed * 0.002;
-            this.mesh.rotation.z += this.speed * 0.0015;
+        if (this.mesh) {
+            this.mesh.rotation.y += 0.003;
+            this.mesh.position.y += Math.sin(Date.now() * 0.001) * 0.05;
         }
     }
 }
 
-// Create celestial bodies
-const icosahedronGeometry = new THREE.IcosahedronGeometry(1, 4);
-const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-const torusGeometry = new THREE.TorusGeometry(1, 0.4, 16, 100);
-
-const objects = [
-    new UniverseObject(
-        new THREE.Vector3(0, 0, 0),
+// Create service elements
+const services = [
+    new ServiceElement(
+        new THREE.Vector3(0, 20, 0),
         8,
-        0xff00ff,
-        3
-    ).create(sphereGeometry, 'Noyau Primaire'),
+        0xff6b35,
+        'fishing',
+        '🐟 PÊCHE DURABLE'
+    ).create(),
 
-    new UniverseObject(
-        new THREE.Vector3(40, 0, 0),
-        4,
-        0x00ffff,
-        2
-    ).create(icosahedronGeometry, 'Planète Cyan'),
+    new ServiceElement(
+        new THREE.Vector3(50, 25, 30),
+        7,
+        0x0088ff,
+        'naval',
+        '⛴️ INGÉNIERIE NAVALE'
+    ).create(),
 
-    new UniverseObject(
-        new THREE.Vector3(-40, 20, 0),
-        3,
-        0xffff00,
-        2.5
-    ).create(sphereGeometry, 'Étoile Jaune'),
+    new ServiceElement(
+        new THREE.Vector3(-50, 20, 40),
+        6,
+        0x00d4ff,
+        'logistics',
+        '🚢 LOGISTIQUE'
+    ).create(),
 
-    new UniverseObject(
-        new THREE.Vector3(0, 40, 30),
+    new ServiceElement(
+        new THREE.Vector3(30, -40, -50),
         5,
-        0xff6600,
-        1.8
-    ).create(icosahedronGeometry, 'Astre Orange'),
-
-    new UniverseObject(
-        new THREE.Vector3(-30, -30, 40),
-        2.5,
-        0x00ff00,
-        3.5
-    ).create(sphereGeometry, 'Cristal Vert'),
-
-    new UniverseObject(
-        new THREE.Vector3(50, -20, -40),
-        3,
-        0xff0088,
-        2.2
-    ).create(torusGeometry, 'Anneau Rose'),
+        0xffaa00,
+        'fishing',
+        '🌊 AGADIR MAROC'
+    ).create()
 ];
 
-objects.forEach(obj => scene.add(obj));
+services.forEach(s => scene.add(s));
 
-// Orbital rings
-const ringMaterial = new THREE.LineBasicMaterial({ color: 0x0f0, linewidth: 1, transparent: true, opacity: 0.3 });
+// Fish school (particles)
+const createFishSchool = () => {
+    const fishGroup = new THREE.Group();
+    const fishCount = 50;
 
-const createOrbit = (radius) => {
-    const points = [];
-    for (let i = 0; i <= 64; i++) {
-        const angle = (i / 64) * Math.PI * 2;
-        points.push(
-            new THREE.Vector3(
-                Math.cos(angle) * radius,
-                0,
-                Math.sin(angle) * radius
-            )
+    for (let i = 0; i < fishCount; i++) {
+        const fishGeometry = new THREE.ConeGeometry(0.8, 2, 4);
+        const fishMaterial = new THREE.MeshStandardMaterial({
+            color: new THREE.Color().setHSL(Math.random() * 0.3 + 0.4, 0.8, 0.5),
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const fish = new THREE.Mesh(fishGeometry, fishMaterial);
+
+        fish.position.set(
+            (Math.random() - 0.5) * 150,
+            (Math.random() - 0.5) * 100 - 20,
+            (Math.random() - 0.5) * 150
         );
+
+        fish.rotation.z = Math.random() * Math.PI * 2;
+        fish.userData = {
+            angle: Math.random() * Math.PI * 2,
+            speed: Math.random() * 0.02 + 0.01,
+            radius: Math.random() * 40 + 20
+        };
+
+        fishGroup.add(fish);
     }
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    return new THREE.Line(geometry, ringMaterial);
+
+    return fishGroup;
 };
 
-scene.add(createOrbit(40));
-scene.add(createOrbit(50));
+const fishSchool = createFishSchool();
+scene.add(fishSchool);
 
-// Star field
-const starGeometry = new THREE.BufferGeometry();
-const starCount = 1000;
-const positions = new Float32Array(starCount * 3);
+// Animate fish
+const updateFishSchool = () => {
+    fishSchool.children.forEach((fish, idx) => {
+        const data = fish.userData;
+        data.angle += data.speed;
 
-for (let i = 0; i < starCount * 3; i += 3) {
-    positions[i] = (Math.random() - 0.5) * 2000;
-    positions[i + 1] = (Math.random() - 0.5) * 2000;
-    positions[i + 2] = (Math.random() - 0.5) * 2000;
-}
+        fish.position.x = Math.cos(data.angle) * data.radius;
+        fish.position.z = Math.sin(data.angle) * data.radius;
+        fish.position.y += Math.sin(Date.now() * 0.0005 + idx) * 0.02;
 
-starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 2 });
-const stars = new THREE.Points(starGeometry, starMaterial);
-scene.add(stars);
+        fish.rotation.y = data.angle;
+    });
+};
+
+// Bubbles
+const createBubbles = () => {
+    const bubbles = [];
+    for (let i = 0; i < 30; i++) {
+        const bubbleGeometry = new THREE.SphereGeometry(
+            Math.random() * 0.5 + 0.2,
+            8,
+            8
+        );
+        const bubbleMaterial = new THREE.MeshStandardMaterial({
+            color: 0x88ccff,
+            transparent: true,
+            opacity: 0.4,
+            metalness: 0.6,
+            roughness: 0.1
+        });
+        const bubble = new THREE.Mesh(bubbleGeometry, bubbleMaterial);
+
+        bubble.position.set(
+            (Math.random() - 0.5) * 200,
+            Math.random() * 100 - 50,
+            (Math.random() - 0.5) * 200
+        );
+
+        bubble.userData = {
+            originY: bubble.position.y,
+            speed: Math.random() * 0.05 + 0.02
+        };
+
+        bubbles.push(bubble);
+        scene.add(bubble);
+    }
+    return bubbles;
+};
+
+const bubbles = createBubbles();
+
+const updateBubbles = () => {
+    bubbles.forEach(bubble => {
+        bubble.position.y += bubble.userData.speed;
+        bubble.position.x += Math.sin(Date.now() * 0.0003) * 0.02;
+
+        if (bubble.position.y > 100) {
+            bubble.position.y = -80;
+        }
+    });
+};
+
+// Agadir port reference
+const portLight = new THREE.PointLight(0xffaa00, 2, 200);
+portLight.position.set(0, 40, -100);
+scene.add(portLight);
 
 // Camera controller
-const cameraController = {
+const controller = {
     velocity: new THREE.Vector3(),
-    speed: 0.5,
+    speed: 0.4,
     keys: {},
 
     update() {
         this.velocity.set(0, 0, 0);
-        const direction = new THREE.Vector3();
+        const dir = new THREE.Vector3();
 
-        if (this.keys['w'] || this.keys['z']) direction.z -= 1;
-        if (this.keys['s']) direction.z += 1;
-        if (this.keys['a'] || this.keys['q']) direction.x -= 1;
-        if (this.keys['d']) direction.x += 1;
-        if (this.keys[' ']) direction.y += 1;
-        if (this.keys['control']) direction.y -= 1;
+        if (this.keys['w'] || this.keys['z']) dir.z -= 1;
+        if (this.keys['s']) dir.z += 1;
+        if (this.keys['a'] || this.keys['q']) dir.x -= 1;
+        if (this.keys['d']) dir.x += 1;
+        if (this.keys[' ']) dir.y += 1;
+        if (this.keys['control']) dir.y -= 1;
 
-        if (direction.length() > 0) {
-            direction.normalize();
-            const moveVector = new THREE.Vector3();
-            moveVector.copy(direction).applyQuaternion(camera.quaternion);
-            this.velocity.add(moveVector.multiplyScalar(this.speed));
+        if (dir.length() > 0) {
+            dir.normalize();
+            const moveVec = new THREE.Vector3();
+            moveVec.copy(dir).applyQuaternion(camera.quaternion);
+            this.velocity.add(moveVec.multiplyScalar(this.speed));
         }
 
         camera.position.add(this.velocity);
-    },
 
-    setSpeed(delta) {
-        this.speed = Math.max(0.1, Math.min(5, this.speed + delta));
+        // Clamp camera height
+        camera.position.y = Math.max(-70, Math.min(100, camera.position.y));
     },
 
     getSpeed() {
@@ -210,42 +291,36 @@ const cameraController = {
     }
 };
 
-// Input handling
+// Input
 document.addEventListener('keydown', (e) => {
     const key = e.key.toLowerCase();
-    cameraController.keys[key] = true;
-    if (key === 'control') cameraController.keys['control'] = true;
-    if (e.code === 'Space') cameraController.keys[' '] = true;
-
-    if (e.key === '+' || e.key === '=') cameraController.setSpeed(0.2);
-    if (e.key === '-') cameraController.setSpeed(-0.2);
+    controller.keys[key] = true;
+    if (e.code === 'Space') controller.keys[' '] = true;
+    if (e.key === '+' || e.key === '=') controller.speed = Math.min(1.5, controller.speed + 0.2);
+    if (e.key === '-') controller.speed = Math.max(0.1, controller.speed - 0.2);
 });
 
 document.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
-    cameraController.keys[key] = false;
-    if (e.code === 'Space') cameraController.keys[' '] = false;
+    controller.keys[key] = false;
+    if (e.code === 'Space') controller.keys[' '] = false;
 });
 
-// Mouse controls
 let mouseDown = false;
 const mouse = { x: 0, y: 0, dx: 0, dy: 0 };
 
 document.addEventListener('mousedown', () => { mouseDown = true; });
 document.addEventListener('mouseup', () => { mouseDown = false; });
-
 document.addEventListener('mousemove', (e) => {
     if (mouseDown) {
         mouse.dx = e.movementX * 0.005;
         mouse.dy = e.movementY * 0.005;
     }
 });
-
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
-// Raycaster for object detection
+// Raycaster
 const raycaster = new THREE.Raycaster();
-const mouse3d = new THREE.Vector2();
 
 // Stats
 let frameCount = 0;
@@ -255,34 +330,39 @@ let lastTime = performance.now();
 function animate() {
     requestAnimationFrame(animate);
 
-    cameraController.update();
+    controller.update();
 
-    // Update rotation
     if (mouseDown) {
         camera.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), mouse.dx);
-        camera.rotateOnWorldAxis(camera.getWorldDirection(new THREE.Vector3()).cross(new THREE.Vector3(0, 1, 0)), mouse.dy);
+        camera.rotateOnWorldAxis(
+            camera.getWorldDirection(new THREE.Vector3()).cross(new THREE.Vector3(0, 1, 0)),
+            mouse.dy
+        );
     }
 
-    // Update objects
-    objects.forEach(obj => obj.update());
+    services.forEach(s => {
+        s.rotation.y += 0.004;
+        s.position.y += Math.sin(Date.now() * 0.001) * 0.03;
+    });
 
-    // Raycasting
-    mouse3d.set(0, 0);
-    raycaster.setFromCamera(mouse3d, camera);
-    const intersects = raycaster.intersectObjects(objects);
+    updateFishSchool();
+    updateBubbles();
 
-    let focusName = 'Univers';
+    // Raycasting for focus
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const intersects = raycaster.intersectObjects(services);
+
+    let focus = 'Océan U-SEA';
     if (intersects.length > 0) {
-        focusName = intersects[0].object.userData.name || 'Univers';
+        focus = intersects[0].object.userData.name;
     }
 
-    // Update HUD
+    // HUD Update
     document.getElementById('pos').textContent =
         `${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)}`;
-    document.getElementById('focus').textContent = focusName;
-    document.getElementById('speed').textContent = cameraController.getSpeed().toFixed(2);
+    document.getElementById('focus').textContent = focus;
+    document.getElementById('speed').textContent = controller.getSpeed().toFixed(2);
 
-    // FPS counter
     frameCount++;
     const currentTime = performance.now();
     if (currentTime - lastTime >= 1000) {
@@ -294,7 +374,6 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Handle resize
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
