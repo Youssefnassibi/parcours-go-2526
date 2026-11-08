@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experience 3D Immersive</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            font-family: 'Courier New', monospace;
+            color: #0f0;
+            text-shadow: 0 0 10px #0f0;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 20, 0, 0.8);
+            border: 2px solid #0f0;
+            padding: 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 10;
+        }
+
+        .info-panel h1 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        .info-panel p {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 20, 0, 0.8);
+            border: 2px solid #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 13px;
+            text-align: right;
+        }
+
+        .controls p {
+            margin: 3px 0;
+        }
+
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border: 2px solid #0f0;
+            opacity: 0.5;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: #0f0;
+        }
+
+        .crosshair::before {
+            width: 8px;
+            height: 2px;
+            left: 50%;
+            top: 50%;
+            transform: translateX(-50%) translateY(-50%);
+        }
+
+        .crosshair::after {
+            width: 2px;
+            height: 8px;
+            left: 50%;
+            top: 50%;
+            transform: translateX(-50%) translateY(-50%);
+        }
+
+        .fps {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 20, 0, 0.8);
+            border: 2px solid #0f0;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0f0;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        .loading::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading">Initialisation de l'univers 3D</div>
+
+    <div class="hud">
+        <div class="info-panel">
+            <h1>⚙️ IMMERSION 3D v1.0</h1>
+            <p>Position: <span id="pos">0.0, 0.0, 0.0</span></p>
+            <p>Objet focus: <span id="focus">Univers</span></p>
+            <p>Vitesse: <span id="speed">0.0</span></p>
+        </div>
+
+        <div class="fps">
+            FPS: <span id="fps">0</span>
+        </div>
+
+        <div class="crosshair"></div>
+
+        <div class="controls">
+            <p>⌨️ CONTRÔLES</p>
+            <p>ZQSD - Mouvement</p>
+            <p>Souris - Rotation</p>
+            <p>Espace - Haut</p>
+            <p>Ctrl - Bas</p>
+            <p>+/- - Vitesse</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
